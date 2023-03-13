@@ -93,7 +93,7 @@ async def fing_all_chats_where_u_wrote():
                       f'где Вы когда-либо оставляли сообщение')
 
 
-async def del_all_old_guys():
+async def get_all_chats():
     with (open('all_bots_dialogs.txt', 'w+', encoding='UTF-8') as all_bots,
           open('all_supergroups_dialogs.txt', 'w+', encoding='UTF-8') as all_supergroups,
           open('all_groups_dialogs.txt', 'w+', encoding='UTF-8') as all_groups,
@@ -126,6 +126,7 @@ async def del_all_old_guys():
                             if message.from_user.id != app.me.id:
 
                                 if dialog.chat.username is None:
+                                    print(dialog.chat)
                                     all_self_chats.write('чат с удаленным пользователем\n')
                                     break
 
@@ -154,15 +155,27 @@ async def del_all_old_guys():
                   f'{counter_groups} обычных беседок и {counter_super} больших беседок')
 
 
+async def collect_users_with_max_same_accounts():
+    deleted_users = []
+    async with app:
+        async for dialog in app.get_dialogs():
+            if dialog.chat.type.name == 'PRIVATE':
+                if dialog.
+                    break
+
+    print(deleted_users)
 def main_menu():
     print(f'{"ГЛАВНОЕ МЕНЮ":^20}')
-    for r, name in enumerate(['4. Получить списки с именами чатов из числа стандартных Telegram типов чатов (Контакты/Не контакты/Группы/Каналы/Боты)',
+    for r, name in enumerate(['4. Получить списки с именами '
+                              'чатов из числа стандартных Telegram типов чатов (Контакты/Не контакты/Группы/Каналы/Боты)',
                               '5. Получить список всех официальных Telegram-каналов, на которые подписан аккаунт.',
+                              '8. Удалить всех старых пользователей',
                               '9. Получить список всех чатов, где хоть раз писал.']):
         print(f'{r + 1}: {name}')
-    dict_funk = {1: del_all_old_guys,
+    dict_funk = {1: get_all_chats,
                  2: find_off_stuff,
-                 3: fing_all_chats_where_u_wrote}
+                 3: fing_all_chats_where_u_wrote,
+                 4: collect_users_with_max_same_accounts}
     match int(input('что запустим? ')):
         case 1:
             start = time.time()  # P.S декоратор у меня не получилось сделать так как при
@@ -178,6 +191,10 @@ def main_menu():
             start = time.time()
             app.run(dict_funk[3]())
             print('ну вроде как сделали')
+        case 4:
+            start = time.time()
+            app.run(dict_funk[4]())
+            print('удалили всех удаленных пользователей')
 
     print(f'время выполнения задачи:  {round(time.time() - start,1)} сек\n')
     app.run(main_menu())
