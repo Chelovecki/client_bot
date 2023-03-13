@@ -4,13 +4,12 @@ import time, asyncio
 from pyrogram import Client, enums
 import configparser
 
-star_sis = time.time()
 config = configparser.ConfigParser()
 config.read('config.ini')
 
 api_id = config['Telegram']['api_id']
 api_hash = config['Telegram']['api_hash']
-app = Client('my_account', api_id=api_id, api_hash=api_hash)
+app = Client('based')
 
 
 async def find_off_stuff() -> None:
@@ -117,18 +116,13 @@ async def del_all_old_guys():
                         counter_super += 1
                     case 'CHANNEL':
                         all_channels.write(f'канал {dialog.chat.title}  (@{dialog.chat.username})\n')
-                        if dialog.chat.last_name:
-                            all_self_chats.write(
-                                f'диалог с {dialog.chat.first_name} {dialog.chat.last_name}  (@{dialog.chat.username})\n')
-                        else:
-                            all_self_chats.write(
-                                f'диалог с {dialog.chat.first_name}  (@{dialog.chat.username})\n')
                         counter_channels += 1
                     case 'PRIVATE':
                         if dialog.chat.id == app.me.id:
                             all_self_chats.write(f'это твой личный чат @{app.me.id}\n')
                             continue
-                        async for message in app.get_chat_history(chat_id=dialog.chat.id, limit=200):
+                        async for message in app.get_chat_history(chat_id=dialog.chat.id, limit=50):
+                            print(message)
                             if message.from_user.id != app.me.id:
 
                                 if dialog.chat.username is None:
@@ -169,7 +163,6 @@ def main_menu():
     dict_funk = {1: del_all_old_guys,
                  2: find_off_stuff,
                  3: fing_all_chats_where_u_wrote}
-    print(f'программа инициализировалась за {round(time.time() - star_sis, 5)} сек')
     match int(input('что запустим? ')):
         case 1:
             start = time.time()  # P.S декоратор у меня не получилось сделать так как при
@@ -186,7 +179,7 @@ def main_menu():
             app.run(dict_funk[3]())
             print('ну вроде как сделали')
 
-    print(f'время выполнения задачи:  {time.time() - start} сек\n')
+    print(f'время выполнения задачи:  {round(time.time() - start,1)} сек\n')
     app.run(main_menu())
 
 
