@@ -1,6 +1,7 @@
+import random
 import time, asyncio
 
-from pyrogram import Client
+from pyrogram import Client, enums
 import configparser
 
 star_sis = time.time()
@@ -10,7 +11,7 @@ config.read('config.ini')
 api_id = config['Telegram']['api_id']
 api_hash = config['Telegram']['api_hash']
 app = Client('my_account', api_id=api_id, api_hash=api_hash)
-app.start()
+
 
 async def find_off_stuff() -> None:
     """
@@ -59,6 +60,7 @@ async def fing_all_chats_where_u_wrote():
                     Когда ошибка произошла, мы понимаем, что чаты закончились, и выводим кол-во
                     того, что нас интересовало: чаты, где мы писали хоть 1 раз.
         """
+
     with (open('dialog_with_bot.txt', 'w+', encoding='UTF-8') as bot_file,
           open('dialog_in_supergroups.txt', 'w+', encoding='UTF-8') as super_group_file,
           open('dialog_in_groups.txt', 'w+', encoding='UTF-8') as group_file):
@@ -84,7 +86,7 @@ async def fing_all_chats_where_u_wrote():
                         async for message in app.search_messages(dialog.chat.id, from_user='me'):
                             file_to_write.write(f'чат {dialog.chat.title}  (@{dialog.chat.username})\n'
                                                 f'текст: {message.text}, дата: {message.date}\n\n')
-                            #print(f'сообщение: {message.text}, время: {message.date}\n')
+                            # print(f'сообщение: {message.text}, время: {message.date}\n')
                             counter_chats += 1
                             break
             except AttributeError:
@@ -92,29 +94,102 @@ async def fing_all_chats_where_u_wrote():
                       f'где Вы когда-либо оставляли сообщение')
 
 
+async def del_all_old_guys():
+    with (open('all_bots_dialogs.txt', 'w+', encoding='UTF-8') as all_bots,
+          open('all_supergroups_dialogs.txt', 'w+', encoding='UTF-8') as all_supergroups,
+          open('all_groups_dialogs.txt', 'w+', encoding='UTF-8') as all_groups,
+          open('all_channels.txt', 'w+', encoding='UTF-8') as all_channels,
+          open('all_private_dialogs.txt', 'w+', encoding='UTF-8') as all_self_chats):
+        async with app:
+            counter_private_cont = counter_private_ne_cont = counter_bots = 0
+            counter_super = counter_groups = counter_channels =  0
+            async for dialog in app.get_dialogs():
+                if random.random(): time.sleep(0.5)
+                match dialog.chat.type.name:
+                    case 'BOT':
+                        all_bots.write(f'бот {dialog.chat.first_name}  (@{dialog.chat.username})\n')
+                        counter_bots += 1
+                    case 'GROUP':
+                        all_groups.write(f'бот {dialog.chat.first_name}  (@{dialog.chat.username})\n')
+                        counter_groups += 1
+                    case 'SUPERGROUP':
+                        all_supergroups.write(f'бот {dialog.chat.first_name}  (@{dialog.chat.username})\n')
+                        counter_super += 1
+                    case 'CHANNEL':
+                        all_channels.write(f'канал {dialog.chat.title}  (@{dialog.chat.username})\n')
+                        if dialog.chat.last_name:
+                            all_self_chats.write(
+                                f'диалог с {dialog.chat.first_name} {dialog.chat.last_name}  (@{dialog.chat.username})\n')
+                        else:
+                            all_self_chats.write(
+                                f'диалог с {dialog.chat.first_name}  (@{dialog.chat.username})\n')
+                        counter_channels += 1
+                    case 'PRIVATE':
+                        if dialog.chat.id == app.me.id:
+                            all_self_chats.write(f'это твой личный чат @{app.me.id}\n')
+                            continue
+                        async for message in app.get_chat_history(chat_id=dialog.chat.id, limit=200):
+                            if message.from_user.id != app.me.id:
+
+                                if dialog.chat.username is None:
+                                    all_self_chats.write('чат с удаленным пользователем\n')
+                                    break
+
+                                if message.from_user.is_contact:
+                                    if dialog.chat.last_name:
+                                        all_self_chats.write(f'диалог с контактом '
+                                                             f'{dialog.chat.first_name} {dialog.chat.last_name}  '
+                                                             f'(@{dialog.chat.username})\n')
+                                    else:
+                                        all_self_chats.write(f'диалог с контактом {dialog.chat.first_name}  (@{dialog.chat.username})\n')
+                                    counter_private_cont += 1
+
+                                else:
+                                    if dialog.chat.last_name:
+                                        all_self_chats.write(f'диалог не с контактом '
+                                                             f'{dialog.chat.first_name} {dialog.chat.last_name}  '
+                                                             f'(@{dialog.chat.username})\n')
+                                    else:
+                                        all_self_chats.write(f'диалог не с контактом {dialog.chat.first_name}  (@{dialog.chat.username})\n')
+                                    counter_private_ne_cont += 1
+                                break
+            print(f'было найдено\n'
+                  f'{counter_private_ne_cont + counter_private_cont} личных чатов, из которых '
+                  f'{counter_private_ne_cont} не твои контакты, {counter_private_cont} твои контакты\n'
+                  f'{counter_bots} ботов\t {counter_channels} каналов\n'
+                  f'{counter_groups} обычных беседок и {counter_super} больших беседок')
+
+
 def main_menu():
     print(f'{"ГЛАВНОЕ МЕНЮ":^20}')
-    for r, name in enumerate(['5. Получить список всех официальных Telegram-каналов, на которые подписан аккаунт.',
+    for r, name in enumerate(['4. Получить списки с именами чатов из числа стандартных Telegram типов чатов (Контакты/Не контакты/Группы/Каналы/Боты)',
+                              '5. Получить список всех официальных Telegram-каналов, на которые подписан аккаунт.',
                               '9. Получить список всех чатов, где хоть раз писал.']):
         print(f'{r + 1}: {name}')
-    dict_funk = {1: find_off_stuff,
-                 2: fing_all_chats_where_u_wrote}
+    dict_funk = {1: del_all_old_guys,
+                 2: find_off_stuff,
+                 3: fing_all_chats_where_u_wrote}
     print(f'программа инициализировалась за {round(time.time() - star_sis, 5)} сек')
     match int(input('что запустим? ')):
         case 1:
             start = time.time()  # P.S декоратор у меня не получилось сделать так как при
             # res = funk(*args, **kwargs) вызываетсся какой-то корутиноВый объект
             app.run(dict_funk[1]())
-            print('все официальные боты и каналы, на которые ты подписан, собраны в одноименных файлах')
+            print('все диалоги/каналы/боты/группы/супергруппы собраны в одноименных файлах')
         case 2:
-            start = time.time()
+            start = time.time()  # P.S декоратор у меня не получилось сделать так как при
+            # res = funk(*args, **kwargs) вызываетсся какой-то корутиноВый объект
             app.run(dict_funk[2]())
+            print('все официальные боты и каналы, на которые ты подписан, собраны в одноименных файлах')
+        case 3:
+            start = time.time()
+            app.run(dict_funk[3]())
             print('ну вроде как сделали')
+
     print(f'время выполнения задачи:  {time.time() - start} сек\n')
-
-
-
-while True:
     app.run(main_menu())
-    print('ожидаю 3 сек и возвращаюсь обратно в главное меню')
-    time.sleep(3)
+
+
+
+app.run(main_menu())
+
