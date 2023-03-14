@@ -194,20 +194,24 @@ async def get_number_from_noncontact(database):
     count = 0
     with open('телефонные номера не контактов.txt', 'w+', encoding='UTF-8') as file:
         async with app:
-            for id_bro in database['PRIVATE']['NOT CONTACT']:
+            async for dialog in app.get_dialogs():
+                if dialog.chat.type.name == 'PRIVATE':
+                    bro_as_object = await app.get_users(dialog.chat.id)
+                    if bro_as_object.id == app.me.id:
+                        continue
 
-                bro_as_object = await app.get_users(id_bro)
-                if bro_as_object.phone_number:
-                    gotten_username = None
-                    try:
-                        gotten_username = bro_as_object.username
-                    except Exception:
-                        pass
-                    if gotten_username:
-                        file.write(f'@{bro_as_object.username}: +{bro_as_object.phone_number}\n')
-                    else:
-                        file.write(f'{bro_as_object.first_name}: +{bro_as_object.phone_number}\n')
-                    count += 1
+                    if not bro_as_object.is_contact:
+                        if bro_as_object.phone_number:
+                            bro_username = None
+                            try:
+                                bro_username = bro_as_object.username
+                            except Exception:
+                                pass
+                            if bro_username:
+                                file.write(f'@{bro_as_object.username}: +{bro_as_object.phone_number}\n')
+                            else:
+                                file.write(f'{bro_as_object.first_name}: +{bro_as_object.phone_number}\n')
+                            count += 1
         print(f'успешно найдено {count} номера')
 
 
@@ -224,7 +228,7 @@ def main_menu():
 
                               'Получить номера пользователей, которым ты писал, но они не являются твоими контактами',
 
-                              '5Получить список всех чатов, где хоть раз писал']):
+                              'Получить список всех чатов, где хоть раз писал']):
         print(f'{r + 1}: {name}')
     dict_funk = {1: update_data,
                  2: get_all_chats,
