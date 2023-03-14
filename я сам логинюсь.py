@@ -70,16 +70,15 @@ async def official_bots_channels() -> None:
                     (если я написал в 100 чатов, то на 101 по счету выйдет ошибка).
                     При желании можно написать counter и посмотреть на каком вылетает ошибка
      """
-    with(open('official_channels.txt', 'w+', encoding='utf-8') as channels,
-         open('official_bots.txt', 'w+', encoding='utf-8') as bots):
+    with open('верифицированные каналы и боты.txt', 'w+', encoding='utf-8') as file:
         async with app:
             try:
                 async for dialog in app.get_dialogs():
                     if dialog.chat.is_verified and dialog.chat.type.CHANNEL:
                         if dialog.chat.type.name == 'BOT':
-                            bots.write(f'name = {dialog.chat.first_name}, @{dialog.chat.username}\n')
+                            file.write(f'бот {dialog.chat.first_name}, @{dialog.chat.username}\n')
                         elif dialog.chat.type.name != 'PRIVATE' and dialog.chat.type.name != 'BOT':
-                            channels.write(f'name = {dialog.chat.title} (@{dialog.chat.username})\n')
+                            file.write(f'канал {dialog.chat.title} (@{dialog.chat.username})\n')
 
             except AttributeError:
                 pass
@@ -96,6 +95,10 @@ async def once_wrote():
         После первого найденного сообщения мы выходим из цикла поиска моих сообщений в данном чате  - 'break',
         и дальше итерируемся по чатам
 
+    Из неприятного:
+        Пока ищешь свое последнее сообщение, легко словить time.sleep() от тг на 6-30 сек
+        ```[me_session] Waiting for 21 seconds before continuing (required by "messages.Search")```
+
 
     :var counter_calls (int) - показывает в сколько чатов ты писал
 
@@ -108,44 +111,40 @@ async def once_wrote():
                     того, что нас интересовало: чаты, где мы писали хоть 1 раз.
         """
 
-    with (open('dialog_with_bot.txt', 'w+', encoding='UTF-8') as bot_file,
-          open('dialog_in_supergroups.txt', 'w+', encoding='UTF-8') as super_group_file,
-          open('dialog_in_groups.txt', 'w+', encoding='UTF-8') as group_file):
+    with (open('боты, супергруппы, группы.txt', 'w+', encoding='UTF-8') as except_private_file,
+          open('личные диалоги.txt', 'w+', encoding='UTF-8') as private_file):
         async with app:
             counter_chats = 0
-            try:
-                async for dialog in app.get_dialogs():
-                    file_to_write = None
-                    match dialog.chat.type.name:
-                        case 'BOT':
-                            print(f'это бот {dialog.chat.title}')
-                            file_to_write = bot_file
-                        case 'GROUP':
-                            print(f'это группа {dialog.chat.title}')
-                            file_to_write = group_file
-                        case 'SUPERGROUP':
-                            print(f'это супергруппа {dialog.chat.title}')
-                            file_to_write = super_group_file
-                        case 'CHANNEL':
-                            print(f'это канал {dialog.chat.title}')
+            async for dialog in app.get_dialogs():
 
-                    if file_to_write:
+                match dialog.chat.type.name:
+                    case 'BOT':
+                        print(f'это бот {dialog.chat.first_name}')
+                        except_private_file.write(f'бот {dialog.chat.first_name}  (@{dialog.chat.username})\n')
+                    case 'GROUP':
+                        print(f'это группа {dialog.chat.first_name}')
+                        except_private_file.write(f'группа {dialog.chat.first_name}  (@{dialog.chat.username})\n')
+                    case 'SUPERGROUP':
+                        print(f'это супергруппа {dialog.chat.title}')
+                        except_private_file.write(f'супергруппа {dialog.chat.title}  (@{dialog.chat.username})\n')
+                    case 'CHANNEL':
+                        if dialog.chat.is_creator:
+                            print(f'это канал {dialog.chat.title}')
+                            except_private_file.write(f'канал {dialog.chat.title}  (@{dialog.chat.username})\n')
+                    case 'PRIVATE':
                         async for message in app.search_messages(dialog.chat.id, from_user='me'):
-                            file_to_write.write(f'чат {dialog.chat.title}  (@{dialog.chat.username})\n'
+                            print(f'сообщение: {message.text}, время: {message.date}')
+                            private_file.write(f'чат {dialog.chat.first_name} {dialog.chat.last_name}  (@{dialog.chat.username})\n'
                                                 f'текст: {message.text}, дата: {message.date}\n\n')
-                            print(f'сообщение: {message.text}, время: {message.date}\n')
                             counter_chats += 1
                             break
-            except AttributeError:
-                print(f'было найдено {counter_chats} чатов, '
-                      f'где Вы когда-либо оставляли сообщение')
 
 
 async def get_all_chats():
     async with app:
         counter_private_cont = counter_private_ne_cont = counter_bots = 0
         counter_super = counter_groups = counter_channels = 0
-        with open(f'all_dialogs.txt', 'w+', encoding='UTF-8') as file:
+        with open(f'все диалоги.txt', 'w+', encoding='UTF-8') as file:
             async for dialog in app.get_dialogs():
                 match dialog.chat.type.name:
                     case 'CHANNEL':
@@ -159,11 +158,11 @@ async def get_all_chats():
                     case 'GROUP':
                         counter_groups += 1
                         print(f'{dialog.chat.first_name} (@{dialog.chat.username})\n')
-                        file.write(f'беседа: {dialog.chat.first_name} (@{dialog.chat.username}')
+                        file.write(f'беседа: {dialog.chat.first_name} (@{dialog.chat.username})\n')
                     case 'SUPERGROUP':
                         counter_super += 1
-                        print(f'супер беседа: {dialog.chat.first_name} (@{dialog.chat.username}')
-                        file.write(f'супер беседа: {dialog.chat.first_name} (@{dialog.chat.username})\n')
+                        print(f'супербеседа: {dialog.chat.first_name} (@{dialog.chat.username}')
+                        file.write(f'супербеседа: {dialog.chat.first_name} (@{dialog.chat.username})\n')
                     case 'PRIVATE':
                         # это у нас диалог с телеграмом
                         # (куда еще коды приходят для авторизации)
@@ -193,7 +192,7 @@ async def get_all_chats():
 
 async def get_number_from_noncontact(database):
     count = 0
-    with open('phone numbers of not contacts.txt', 'w+', encoding='UTF-8') as file:
+    with open('телефонные номера не контактов.txt', 'w+', encoding='UTF-8') as file:
         async with app:
             for id_bro in database['PRIVATE']['NOT CONTACT']:
 
@@ -218,10 +217,10 @@ def main_menu():
     print(f'{"ГЛАВНОЕ МЕНЮ":^20}')
     for r, name in enumerate(['Обновить все данные о чатах',
 
-                              '2Получить списки с именами'
+                              'Получить списки с именами'
                               'чатов из числа стандартных Telegram типов чатов (Контакты/Не контакты/Группы/Каналы/Боты)',
 
-                              '3Получить список всех официальных Telegram-каналов и ботов пользователя',
+                              'Получить список всех официальных Telegram-каналов и ботов пользователя',
 
                               'Получить номера пользователей, которым ты писал, но они не являются твоими контактами',
 
@@ -243,20 +242,23 @@ def main_menu():
         case 1:
             start = time.time()
             app.run(dict_funk[1](abs_path_database))
-            print('все диалоги/каналы/боты/группы/супергруппы собраны в одноименных файлах')
+            print('данные обновлены')
         case 2:
-            start = time.time()  # P.S декоратор у меня не получилось сделать так как при
-            # res = funk(*args, **kwargs) вызываетсся какой-то корутиноВый объект
+            start = time.time()
             app.run(dict_funk[2]())
-            print('все это собрано в файле all_dialogs.txt')
+            print('вся информация собрана с файле файле "все диалоги.txt"')
         case 3:
             start = time.time()
             app.run(dict_funk[3]())
-            print('ну вроде как сделали')
+            print('вся информация собрана в фале "верифицированные каналы и боты.txt"')
         case 4:
             start = time.time()
             app.run(dict_funk[4](database_dict))
-            print('нашли всех не-контактов и записали их номера (если они доступны)')
+            print('вся информация собрана в фале "телефонные номера не контактов.txt"')
+        case 5:
+            start = time.time()
+            app.run(dict_funk[5]())
+            print('вся информация собрана в файлах:\t "телефонные "личные диалоги.txt" и "боты, супергруппы, группы.txt"')
 
     print(f'время выполнения задачи:  {round(time.time() - start, 1)} сек\n')
     app.run(main_menu())
