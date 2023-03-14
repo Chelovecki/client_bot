@@ -1,7 +1,6 @@
-import random, time, json, os
+import time, json, configparser
 
-from pyrogram import Client, enums
-import configparser
+from pyrogram import Client
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -10,11 +9,10 @@ api_hash = config['Telegram']['api_hash']
 app = Client('me_session', api_id, api_hash)
 
 
-
-
 def write_in_json(path, dictionary):
     with open(path, 'w', encoding='UTF-8') as file:
         json.dump(dictionary, file, ensure_ascii=False, indent=4)
+
 
 def read_from_json(name_and_path):
     file = open(name_and_path, 'r', encoding='UTF-8')
@@ -23,7 +21,7 @@ def read_from_json(name_and_path):
     return dictionary
 
 
-async def update_data(abs_path_database):
+async def collect_data():
     database_dict = {'BOT': [],
                      'GROUP': [],
                      'SUPERGROUP': [],
@@ -58,7 +56,8 @@ async def update_data(abs_path_database):
                         database_dict['PRIVATE']['CONTACT'].append(some_user.id)
                     else:
                         database_dict['PRIVATE']['NOT CONTACT'].append(some_user.id)
-            write_in_json(abs_path_database, database_dict)
+    write_in_json('yr_database.json', database_dict)
+
 
 async def official_bots_channels() -> None:
     """
@@ -134,8 +133,9 @@ async def once_wrote():
                     case 'PRIVATE':
                         async for message in app.search_messages(dialog.chat.id, from_user='me'):
                             print(f'сообщение: {message.text}, время: {message.date}')
-                            private_file.write(f'чат {dialog.chat.first_name} {dialog.chat.last_name}  (@{dialog.chat.username})\n'
-                                                f'текст: {message.text}, дата: {message.date}\n\n')
+                            private_file.write(
+                                f'чат {dialog.chat.first_name} {dialog.chat.last_name}  (@{dialog.chat.username})\n'
+                                f'текст: {message.text}, дата: {message.date}\n\n')
                             counter_chats += 1
                             break
 
@@ -175,13 +175,16 @@ async def get_all_chats():
                         some_user = await app.get_users(dialog.chat.id)
                         if some_user.is_contact:
                             counter_private_cont += 1
-                            print(f'чат с не контактом {some_user.first_name} {some_user.last_name}  (@{some_user.username})\n')
+                            print(
+                                f'чат с не контактом {some_user.first_name} {some_user.last_name}  (@{some_user.username})\n')
                             file.write(
                                 f'чат с контактом {some_user.first_name} {some_user.last_name}  (@{some_user.username})\n')
                         else:
                             counter_private_ne_cont += 1
-                            print(f'чат с не контактом {some_user.first_name} {some_user.last_name}  (@{some_user.username})\n')
-                            file.write(f'чат с не контактом {some_user.first_name} {some_user.last_name}  (@{some_user.username})\n')
+                            print(
+                                f'чат с не контактом {some_user.first_name} {some_user.last_name}  (@{some_user.username})\n')
+                            file.write(
+                                f'чат с не контактом {some_user.first_name} {some_user.last_name}  (@{some_user.username})\n')
 
             print(f'было найдено\n'
                   f'{counter_private_ne_cont + counter_private_cont} личных чатов, из которых '
@@ -190,7 +193,7 @@ async def get_all_chats():
                   f'{counter_groups} обычных беседок и {counter_super} больших беседок')
 
 
-async def get_number_from_noncontact(database):
+async def get_number_from_noncontact():
     count = 0
     with open('телефонные номера не контактов.txt', 'w+', encoding='UTF-8') as file:
         async with app:
@@ -216,57 +219,44 @@ async def get_number_from_noncontact(database):
 
 
 def main_menu():
-    abs_path_database = os.path.abspath(os.path.join('данные json', 'yr_database.json'))
-    abs_path_all_chats = os.path.abspath(os.path.join('все чаты и каналы'))
     print(f'{"ГЛАВНОЕ МЕНЮ":^20}')
-    for r, name in enumerate(['Обновить все данные о чатах',
-
-                              'Получить списки с именами'
-                              'чатов из числа стандартных Telegram типов чатов (Контакты/Не контакты/Группы/Каналы/Боты)',
-
-                              'Получить список всех официальных Telegram-каналов и ботов пользователя',
-
-                              'Получить номера пользователей, которым ты писал, но они не являются твоими контактами',
-
-                              'Получить список всех чатов, где хоть раз писал']):
+    for r, name in enumerate([
+                                 'Получить все данные об чатах (их id). результат работы по сути нигде не используется. Но ради интереса (для себя) можно и собрать.',
+                                 'Получить списки с именами'
+                                 'чатов из числа стандартных Telegram типов чатов (Контакты/Не контакты/Группы/Каналы/Боты)',
+                                 'Получить список всех официальных Telegram-каналов и ботов пользователя',
+                                 'Получить номера пользователей, которым ты писал, но они не являются твоими контактами',
+                                 'Получить список всех чатов, где хоть раз писал']):
         print(f'{r + 1}: {name}')
-    dict_funk = {1: update_data,
+    dict_funk = {1: collect_data,
                  2: get_all_chats,
                  3: official_bots_channels,
                  4: get_number_from_noncontact,
                  5: once_wrote}
-    choise = int(input('что запустим? '))
-    database_dict = read_from_json(abs_path_database)
-    if not database_dict:
-        if choise != 1:
-            print('у нас нет информации о чатах. чтобы ее получить, пожалуйста, выберите 1-й пункт')
-            app.run(main_menu())
+    chose = int(input('что запустим? '))
 
-    match choise:
+    start = time.time()
+    match chose:
         case 1:
-            start = time.time()
-            app.run(dict_funk[1](abs_path_database))
-            print('данные обновлены')
+            app.run(dict_funk[1]())
+            print('данные собраны и находсят в файле "yr_database.json"')
         case 2:
-            start = time.time()
             app.run(dict_funk[2]())
             print('вся информация собрана с файле файле "все диалоги.txt"')
         case 3:
-            start = time.time()
             app.run(dict_funk[3]())
             print('вся информация собрана в фале "верифицированные каналы и боты.txt"')
         case 4:
-            start = time.time()
-            app.run(dict_funk[4](database_dict))
+            app.run(dict_funk[4]())
             print('вся информация собрана в фале "телефонные номера не контактов.txt"')
         case 5:
             start = time.time()
             app.run(dict_funk[5]())
-            print('вся информация собрана в файлах:\t "телефонные "личные диалоги.txt" и "боты, супергруппы, группы.txt"')
+            print(
+                'вся информация собрана в файлах:\t "телефонные "личные диалоги.txt" и "боты, супергруппы, группы.txt"')
 
     print(f'время выполнения задачи:  {round(time.time() - start, 1)} сек\n')
     app.run(main_menu())
 
 
 app.run(main_menu())
-
