@@ -1,5 +1,4 @@
-import time, json, configparser, datetime
-from datetime import timedelta
+import time, json, configparser
 
 from pyrogram import Client
 
