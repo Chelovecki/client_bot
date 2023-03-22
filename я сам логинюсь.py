@@ -1,4 +1,5 @@
-import time, json, configparser
+import time, json, configparser, datetime
+from datetime import timedelta
 
 from pyrogram import Client
 
@@ -7,6 +8,8 @@ config.read('config.ini')
 api_id = config['Telegram']['api_id']
 api_hash = config['Telegram']['api_hash']
 app = Client('me_session', api_id, api_hash)
+
+a = time.time()
 
 
 def write_in_json(path, dictionary):
@@ -109,36 +112,49 @@ async def once_wrote():
                     Когда ошибка произошла, мы понимаем, что чаты закончились, и выводим кол-во
                     того, что нас интересовало: чаты, где мы писали хоть 1 раз.
         """
-
-    with (open('боты, супергруппы, группы.txt', 'w+', encoding='UTF-8') as except_private_file,
-          open('личные диалоги.txt', 'w+', encoding='UTF-8') as private_file):
+    search_limit = datetime.datetime.now() - timedelta(days=30)  # возьмем дефолтный 30-дневный месяц
+    logging = dict()
+    if int(input(
+            'по умолчанию будет осуществлен поиск по сообщениям за последний месяц. вы хотите указать свою дату, вплоть до которой будет осуществлен поиск?(1-да, 0-нет):  ')):
+        y, m, d = map(int, input('введи дату в формате yyyy-mm-dd:  ').split('-'))
+        # я подумал, что проще будет сделать проверку на корректность ввода так,
+        # чем делать проверку диапазоном для каждого из 3-х инстансов
+        search_limit = datetime.date(y, m, d)
+    with open('чаты, где ты хоть раз писал.txt', 'w+', encoding='UTF-8') as file:
         async with app:
             counter_chats = 0
             async for dialog in app.get_dialogs():
-
-                match dialog.chat.type.name:
-                    case 'BOT':
-                        print(f'это бот {dialog.chat.first_name}')
-                        except_private_file.write(f'бот {dialog.chat.first_name}  (@{dialog.chat.username})\n')
-                    case 'GROUP':
-                        print(f'это группа {dialog.chat.first_name}')
-                        except_private_file.write(f'группа {dialog.chat.first_name}  (@{dialog.chat.username})\n')
-                    case 'SUPERGROUP':
-                        print(f'это супергруппа {dialog.chat.title}')
-                        except_private_file.write(f'супергруппа {dialog.chat.title}  (@{dialog.chat.username})\n')
-                    case 'CHANNEL':
-                        if dialog.chat.is_creator:
-                            print(f'это канал {dialog.chat.title}')
-                            except_private_file.write(f'канал {dialog.chat.title}  (@{dialog.chat.username})\n')
-                    case 'PRIVATE':
-                        async for message in app.search_messages(dialog.chat.id, from_user='me'):
-                            print(f'сообщение: {message.text}, время: {message.date}')
-                            private_file.write(
-                                f'чат {dialog.chat.first_name} {dialog.chat.last_name}  (@{dialog.chat.username})\n'
-                                f'текст: {message.text}, дата: {message.date}\n\n')
-                            counter_chats += 1
+                async for message in app.search_messages(dialog.chat.id, from_user="me"):
+                    if message.date >= search_limit:
+                        if not message.service:
+                            match dialog.chat.type.name:
+                                case 'BOT':
+                                    file.write(
+                                        f'бот {dialog.chat.first_name} (@{dialog.chat.username})\t'
+                                        f'сообщение: {message.text}; в {message.date}\n')
+                                case 'GROUP':
+                                    file.write(
+                                        f'группа {dialog.chat.first_name} (@{dialog.chat.username})\t'
+                                        f'сообщение: {message.text}; в {message.date}\n')
+                                case 'SUPERGROUP':
+                                    file.write(
+                                        f'супергруппа {dialog.chat.title} (@{dialog.chat.username})\t'
+                                        f'сообщение: {message.text}; в {message.date}\n')
+                                case 'CHANNEL':
+                                    if dialog.chat.is_creator:
+                                        file.write(
+                                            f'канал {dialog.chat.title} (@{dialog.chat.username})\t'
+                                            f'сообщение: {message.text}; в {message.date}\n')
+                                case 'PRIVATE':
+                                    file.write(
+                                        f'чат {dialog.chat.first_name} {dialog.chat.last_name}  (@{dialog.chat.username})\t'
+                                        f'сообщение: {message.text}; в {message.date}\n')
+                                    counter_chats += 1
+                            logging[dialog.chat.id] = message.id
                             break
-
+                    else:
+                        break
+    write_in_json('чаты, где ты хоть раз писал.json', logging)
 
 async def get_all_chats():
     async with app:
@@ -221,12 +237,12 @@ async def get_number_from_noncontact():
 def main_menu():
     print(f'{"ГЛАВНОЕ МЕНЮ":^20}')
     for r, name in enumerate([
-                                 'Получить все данные об чатах (их id). результат работы по сути нигде не используется. Но ради интереса (для себя) можно и собрать.',
-                                 'Получить списки с именами'
-                                 'чатов из числа стандартных Telegram типов чатов (Контакты/Не контакты/Группы/Каналы/Боты)',
-                                 'Получить список всех официальных Telegram-каналов и ботов пользователя',
-                                 'Получить номера пользователей, которым ты писал, но они не являются твоими контактами',
-                                 'Получить список всех чатов, где хоть раз писал']):
+        'Получить все данные об чатах (их id). результат работы по сути нигде не используется. Но ради интереса (для себя) можно и собрать.',
+        'Получить списки с именами'
+        'чатов из числа стандартных Telegram типов чатов (Контакты/Не контакты/Группы/Каналы/Боты)',
+        'Получить список всех официальных Telegram-каналов и ботов пользователя',
+        'Получить номера пользователей, которым ты писал, но они не являются твоими контактами',
+        'Получить список всех чатов, где хоть раз писал']):
         print(f'{r + 1}: {name}')
     dict_funk = {1: collect_data,
                  2: get_all_chats,
@@ -253,10 +269,11 @@ def main_menu():
             start = time.time()
             app.run(dict_funk[5]())
             print(
-                'вся информация собрана в файлах:\t "телефонные "личные диалоги.txt" и "боты, супергруппы, группы.txt"')
+                'вся информация собрана в файлах:\t "чаты, где ты хоть раз писал.txt"')
 
     print(f'время выполнения задачи:  {round(time.time() - start, 1)} сек\n')
     app.run(main_menu())
 
 
-app.run(main_menu())
+app.run(once_wrote())
+print(f'время = {time.time() - a}')
