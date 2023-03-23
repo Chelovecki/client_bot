@@ -1,4 +1,5 @@
-import time, json, configparser
+import time, json, configparser, datetime
+from datetime import timedelta
 
 from pyrogram import Client
 
@@ -71,18 +72,21 @@ async def official_bots_channels() -> None:
                     (если я написал в 100 чатов, то на 101 по счету выйдет ошибка).
                     При желании можно написать counter и посмотреть на каком вылетает ошибка
      """
+    logging = dict()
+    logging['BOT'] = []
+    logging['CHANNEL'] = []
     with open('верифицированные каналы и боты.txt', 'w+', encoding='utf-8') as file:
         async with app:
-            try:
-                async for dialog in app.get_dialogs():
-                    if dialog.chat.is_verified and dialog.chat.type.CHANNEL:
-                        if dialog.chat.type.name == 'BOT':
-                            file.write(f'бот {dialog.chat.first_name}, @{dialog.chat.username}\n')
-                        elif dialog.chat.type.name != 'PRIVATE' and dialog.chat.type.name != 'BOT':
-                            file.write(f'канал {dialog.chat.title} (@{dialog.chat.username})\n')
+            async for dialog in app.get_dialogs():
+                if dialog.chat.is_verified and dialog.chat.type.CHANNEL:
+                    if dialog.chat.type.name == 'BOT':
+                        file.write(f'бот {dialog.chat.first_name}, @{dialog.chat.username}\n')
+                        logging['BOT'].append(dialog.chat.id)
+                    elif dialog.chat.type.name != 'PRIVATE' and dialog.chat.type.name != 'BOT':
+                        file.write(f'канал {dialog.chat.title} (@{dialog.chat.username})\n')
+                        logging['CHANNEL'].append(dialog.chat.id)
+        write_in_json('верифицированные каналы и боты.json', logging)
 
-            except AttributeError:
-                pass
 
 
 async def once_wrote():
@@ -110,7 +114,7 @@ async def once_wrote():
                     При желании можно написать counter и посмотреть на каком вылетает ошибка.
                     Когда ошибка произошла, мы понимаем, что чаты закончились, и выводим кол-во
                     того, что нас интересовало: чаты, где мы писали хоть 1 раз.
-        """
+    """
     search_limit = datetime.datetime.now() - timedelta(days=30)  # возьмем дефолтный 30-дневный месяц
     logging = dict()
     if int(input(
@@ -118,13 +122,18 @@ async def once_wrote():
         y, m, d = map(int, input('введи дату в формате yyyy-mm-dd:  ').split('-'))
         # я подумал, что проще будет сделать проверку на корректность ввода так,
         # чем делать проверку диапазоном для каждого из 3-х инстансов
-        search_limit = datetime.date(y, m, d)
+        search_limit = datetime.datetime(y, m, d)
     with open('чаты, где ты хоть раз писал.txt', 'w+', encoding='UTF-8') as file:
         async with app:
             counter_chats = 0
             async for dialog in app.get_dialogs():
+                if dialog.chat.id == app.me.id:
+                    print('твой личный диалог')
+                    continue
                 async for message in app.search_messages(dialog.chat.id, from_user="me"):
+                    print(f'{dialog.chat.first_name}')
                     if message.date >= search_limit:
+                        print(message.date)
                         if not message.service:
                             match dialog.chat.type.name:
                                 case 'BOT':
@@ -186,7 +195,6 @@ async def get_all_chats():
                         # это наш личный чат (Избранное, оно же Saved Messaged)
                         if dialog.top_message.from_user.is_self:
                             continue
-
                         some_user = await app.get_users(dialog.chat.id)
                         if some_user.is_contact:
                             counter_private_cont += 1
@@ -210,6 +218,7 @@ async def get_all_chats():
 
 async def get_number_from_noncontact():
     count = 0
+    logging = dict()
     with open('телефонные номера не контактов.txt', 'w+', encoding='UTF-8') as file:
         async with app:
             async for dialog in app.get_dialogs():
@@ -229,8 +238,10 @@ async def get_number_from_noncontact():
                                 file.write(f'@{bro_as_object.username}: +{bro_as_object.phone_number}\n')
                             else:
                                 file.write(f'{bro_as_object.first_name}: +{bro_as_object.phone_number}\n')
+                            logging[dialog.chat.id] = bro_as_object.phone_number
                             count += 1
         print(f'успешно найдено {count} номера')
+        write_in_json('телефонные номера не контактов.json', logging)
 
 
 def main_menu():
@@ -274,5 +285,5 @@ def main_menu():
     app.run(main_menu())
 
 
-app.run(once_wrote())
+app.run(main_menu())
 print(f'время = {time.time() - a}')
